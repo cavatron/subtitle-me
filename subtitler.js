@@ -28,53 +28,55 @@ var optional = require('optional');
 var ffmpeg = require('fluent-ffmpeg');
 var moment = require('moment');
 require("moment-duration-format");
-var SpeechToTextV1 = require('watson-developer-cloud/speech-to-text/v1');
+var SpeechToTextV1 = require('ibm-watson/speech-to-text/v1');
+const { IamAuthenticator } = require('ibm-watson/auth');
 var trim = require('trim');
+const fs = require('fs')
 
 function processVideo(callback) {
 
     var argv = require('minimist')(process.argv.slice(2));
 
     var questions = [{
-            name: 'filename',
-            type: 'input',
-            message: 'Enter the file name of the video:',
-            default: argv._[0] || null,
-            validate: function (value) {
-                if (value.length) {
-                    return true;
-                } else {
-                    return 'Please enter the file name of the video';
-                }
+        name: 'filename',
+        type: 'input',
+        message: 'Enter the file name of the video:',
+        default: argv._[0] || null,
+        validate: function (value) {
+            if (value.length) {
+                return true;
+            } else {
+                return 'Please enter the file name of the video';
+            }
+        }
+    },
+    {
+        name: 'source',
+        type: 'input',
+        message: 'Enter the BCP source language code or customization id:',
+        default: argv._[1] || 'en',
+        validate: function (value) {
+            if (value.length) {
+                return true;
+            } else {
+                return 'Please enter the BCP source language code or customization id';
             }
         },
-        {
-            name: 'source',
-            type: 'input',
-            message: 'Enter the BCP source language code or customization id:',
-            default: argv._[1] || 'en',
-            validate: function (value) {
-                if (value.length) {
-                    return true;
-                } else {
-                    return 'Please enter the BCP source language code or customization id';
-                }
-            },
+    },
+    {
+        name: 'casing',
+        type: 'list',
+        message: 'Indicate whether subtitles should be sentence cased:',
+        choices: ['yes', "no"],
+        default: argv._[2] || 'yes',
+        validate: function (value) {
+            if (value.length) {
+                return true;
+            } else {
+                return 'Please indicate whether the captions should be sentence cased';
+            }
         },
-        {
-            name: 'casing',
-            type: 'list',
-            message: 'Indicate whether subtitles should be sentence cased:',
-            choices: ['yes', "no"],
-            default: argv._[2] || 'yes',
-            validate: function (value) {
-                if (value.length) {
-                    return true;
-                } else {
-                    return 'Please indicate whether the captions should be sentence cased';
-                }
-            },
-        }
+    }
     ];
 
     inquirer.prompt(questions).then(function (answers) {
@@ -103,34 +105,38 @@ function extractAudio(filename, callback) {
             source: filename,
             timeout: 0
         }).withAudioCodec('libmp3lame')
-        .withAudioBitrate(128)
-        .withAudioChannels(2)
-        .withAudioFrequency(44100)
-        .withAudioQuality(5)
-        .withAudioFilters('highpass=f=200', 'lowpass=f=3000')
-        .toFormat('mp3')
+            .withAudioBitrate(128)
+            .withAudioChannels(2)
+            .withAudioFrequency(44100)
+            .withAudioQuality(5)
+            .withAudioFilters('highpass=f=200', 'lowpass=f=3000')
+            .toFormat('mp3')
 
-        .on('start', function (commandLine) {
-            console.log("Generating audio file from video");
-        })
+            .on('start', function (commandLine) {
+                console.log("Generating audio file from video");
+            })
 
-        .on('error', function (err, stdout, stderr) {
-            return callback(err);
-        })
+            .on('error', function (err, stdout, stderr) {
+                return callback(err);
+            })
 
-        .on('progress', function (progress) {
-            console.log(progress.percent.toFixed(0) + '%');
-        })
+            .on('progress', function (progress) {
+                console.log(progress.percent.toFixed(0) + '%');
+            })
 
-        .on('end', function () {
-            console.log("Finished generating audio file: " + files.name(filename) + '.mp3');
-            return callback(null, files.name(filename) + '.mp3');
-        })
-        .saveToFile(files.name(filename) + '.mp3');
+            .on('end', function () {
+                console.log("Finished generating audio file: " + files.name(filename) + '.mp3');
+                return callback(null, files.name(filename) + '.mp3');
+            })
+            .saveToFile(files.name(filename) + '.mp3');
 }
 
 function getSubtitles(creds, filename, source, callback) {
-    var speech_to_text = new SpeechToTextV1(creds.credentials);
+    var speechToText = new SpeechToTextV1({
+        authenticator: new IamAuthenticator({ apikey: creds.password }),
+        url: 'https://stream.watsonplatform.net/speech-to-text/api/'
+    });
+
     var model = '';
     var customization = '';
 
@@ -155,12 +161,13 @@ function getSubtitles(creds, filename, source, callback) {
     }
 
     var params = {
-        content_type: 'audio/mp3; rate=44100',
+        contentType: 'audio/mp3; rate=44100',
         timestamps: true,
         continuous: true,
-        interim_results: true,
-        max_alternatives: 1,
-        smart_formatting: false
+        interimResults: true,
+        maxAlternatives: 1,
+        smartFormatting: false,
+        audio: fs.createReadStream(filename)
     };
 
     if (model != '') {
@@ -175,32 +182,19 @@ function getSubtitles(creds, filename, source, callback) {
     console.log("Size of audio file: " + size);
 
     var status = new Spinner(chalk.green('Extracting subtitle line number: '));
-    var results = [];
-
-    var recognizeStream = speech_to_text.createRecognizeStream(params);
-
-    files.stream(filename).pipe(recognizeStream);
-    recognizeStream.setEncoding('utf8');
 
     status.start();
 
-    recognizeStream.on('results', function (data) {
-        if (data.results[0].final) {
-            results.push(data);
-            // Show the status as each subtitle is generated
-            console.log(data.result_index + 1);
-        }
-    });
-
-    recognizeStream.on('error', function (err) {
-        status.stop()
-        callback(err);
-    });
-
-    recognizeStream.on('close', function () {
-        status.stop();
-        callback(null, results);
-    });
+    speechToText.recognize(params)
+        .then(response => {
+            console.log(JSON.stringify(response.result, null, 2));
+            callback(null, response.result)
+        })
+        .catch(err => {
+            callback(err)
+        }).finally(() => {
+            status.stop();
+        });
 
 }
 
@@ -219,8 +213,8 @@ function formatSubtitles(resultsArray, casing) {
     var srtJSON = [];
     var speechEvents = [];
 
-    for (var i = 0; i < resultsArray.length; ++i) {
-        var result = resultsArray[i].results[0];
+    for (var i = 0; i < resultsArray.results.length; ++i) {
+        var result = resultsArray.results[i];
 
         var alternatives = result.alternatives;
         var timeStamps = alternatives[0].timestamps;
