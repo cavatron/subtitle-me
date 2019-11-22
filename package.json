@@ -3,7 +3,7 @@
   "version": "1.0.6",
   "description": "Generate subtitle text from a video",
   "main": "./index.js",
-  "bin:": {
+  "bin": {
     "subtitle-me": "./cli.js"
   },
   "scripts": {
