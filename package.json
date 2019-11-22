@@ -4,7 +4,7 @@
   "description": "Generate subtitle text from a video",
   "main": "index.js",
   "bin:": {
-    "subtitle-me": "./index.js"
+    "subtitle-me": "index.js"
   },
   "scripts": {
     "start": "nodemon",
@@ -13,6 +13,9 @@
   "keywords": [
     "subtitle"
   ],
+  "engines": {
+    "node": ">=10"
+  },
   "author": "Steve Atkin <atkin@us.ibm.com>",
   "contributors": [
     "Cavanaugh Richards <cavatron@pm.me>"
