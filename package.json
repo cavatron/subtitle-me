@@ -1,6 +1,6 @@
 {
   "name": "subtitle-me",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Generate subtitle text from a video",
   "main": "index.js",
   "bin:": {
