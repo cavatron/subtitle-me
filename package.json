@@ -1,9 +1,11 @@
 {
   "name": "subtitle-me",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Generate subtitle text from a video",
-  "main": "index.js",
-  "bin:": "index.js",
+  "main": "./index.js",
+  "bin:": {
+    "subtitle-me": "./cli.js"
+  },
   "scripts": {
     "start": "nodemon",
     "clean": "rimraf out"
@@ -12,7 +14,8 @@
     "subtitle"
   ],
   "files": [
-    "src"
+    "src",
+    "cli.js"
   ],
   "engines": {
     "node": ">=10"

@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /*	
  * Copyright IBM Corp. 2017
  *
@@ -256,7 +254,7 @@ function formatSubtitles(resultsArray, casing) {
   });
 }
 
-(function () {
+function run() {
   clear();
   console.log(
     chalk.yellow(
@@ -293,4 +291,8 @@ function formatSubtitles(resultsArray, casing) {
   } else {
     console.log(chalk.red('Missing credentials. Set the IBM_CLOUD_API_KEY environment variable'));
   }
-})();
+}
+
+module.exports = {
+  run
+}
