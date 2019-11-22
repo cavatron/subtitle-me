@@ -86,7 +86,6 @@ function processVideo(callback) {
   });
 }
 
-
 function extractAudio(filename, callback) {
   mkdirp('out', function (err) {
     if (err) {
@@ -257,39 +256,41 @@ function formatSubtitles(resultsArray, casing) {
   });
 }
 
-clear();
-console.log(
-  chalk.yellow(
-    figlet.textSync('Subtitle Me', {
-      horizontalLayout: 'full'
-    })
-  )
-);
+(function () {
+  clear();
+  console.log(
+    chalk.yellow(
+      figlet.textSync('Subtitle Me', {
+        horizontalLayout: 'full'
+      })
+    )
+  );
 
-if (process.env.IBM_CLOUD_API_KEY) {
-  processVideo(function (err, filename, casing) {
-    if (err) {
-      console.log(chalk.red("Failed to generate audio file from video"));
-    } else {
-      getSubtitles(process.env.IBM_CLOUD_API_KEY, filename, function (err, response) {
-        if (err) {
-          console.log(chalk.red('Could not extract subtitles from audio file'));
-        } else {
-          console.log('Generating subtitles file');
+  if (process.env.IBM_CLOUD_API_KEY) {
+    processVideo(function (err, filename, casing) {
+      if (err) {
+        console.log(chalk.red("Failed to generate audio file from video"));
+      } else {
+        getSubtitles(process.env.IBM_CLOUD_API_KEY, filename, function (err, response) {
+          if (err) {
+            console.log(chalk.red('Could not extract subtitles from audio file'));
+          } else {
+            console.log('Generating subtitles file');
 
-          var speechData = formatSubtitles(response, casing);
-          // Take the JSON objects and write them in SRT format
-          var srtSubs = parser.toSrt(speechData.subtitles);
-          files.write('out/' + files.name(filename) + '.srt', srtSubs);
-          console.log('Finished generating subtitles file: ' + files.name(`out/${filename}`) + '.srt');
+            var speechData = formatSubtitles(response, casing);
+            // Take the JSON objects and write them in SRT format
+            var srtSubs = parser.toSrt(speechData.subtitles);
+            files.write('out/' + files.name(filename) + '.srt', srtSubs);
+            console.log('Finished generating subtitles file: ' + files.name(`out/${filename}`) + '.srt');
 
-          // Write out all the raw speech events
-          files.write('out/' + files.name(filename) + '_events.json', JSON.stringify(speechData.events, null, 2));
-          console.log('Finished generating speech events file: ' + 'out/' + files.name(filename) + '_events.json');
-        }
-      });
-    }
-  });
-} else {
-  console.log(chalk.red('Missing credentials. Set the IBM_CLOUD_API_KEY environment variable'));
-}
+            // Write out all the raw speech events
+            files.write('out/' + files.name(filename) + '_events.json', JSON.stringify(speechData.events, null, 2));
+            console.log('Finished generating speech events file: ' + 'out/' + files.name(filename) + '_events.json');
+          }
+        });
+      }
+    });
+  } else {
+    console.log(chalk.red('Missing credentials. Set the IBM_CLOUD_API_KEY environment variable'));
+  }
+})();

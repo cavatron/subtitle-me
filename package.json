@@ -3,9 +3,7 @@
   "version": "1.0.2",
   "description": "Generate subtitle text from a video",
   "main": "index.js",
-  "bin:": {
-    "subtitle-me": "index.js"
-  },
+  "bin:": "index.js",
   "scripts": {
     "start": "nodemon",
     "clean": "rimraf out"
