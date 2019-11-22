@@ -13,6 +13,9 @@
   "keywords": [
     "subtitle"
   ],
+  "files": [
+    "src"
+  ],
   "engines": {
     "node": ">=10"
   },
