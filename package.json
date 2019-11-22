@@ -7,7 +7,8 @@
     "subtitle-me": "./index.js"
   },
   "scripts": {
-    "start": "nodemon"
+    "start": "nodemon",
+    "clean": "rimraf out"
   },
   "keywords": [
     "subtitle"
@@ -28,12 +29,14 @@
     "inquirer": "^7.0.0",
     "lodash": "^4.17.15",
     "minimist": "^1.2.0",
+    "mkdirp": "^0.5.1",
     "moment": "^2.24.0",
     "moment-duration-format": "^2.3.2",
     "sentence-tokenizer": "^1.0.1",
     "subtitles-parser": "^0.0.2"
   },
   "devDependencies": {
-    "nodemon": "^2.0.0"
+    "nodemon": "^2.0.0",
+    "rimraf": "^3.0.0"
   }
 }

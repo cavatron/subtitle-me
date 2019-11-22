@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-require('dotenv').config()
+require('dotenv').config();
 require("moment-duration-format");
 const chalk = require('chalk');
 const clear = require('clear');
@@ -30,9 +30,10 @@ const ffmpeg = require('fluent-ffmpeg');
 const moment = require('moment');
 const SpeechToTextV1 = require('ibm-watson/speech-to-text/v1');
 const { IamAuthenticator } = require('ibm-watson/auth');
-const fs = require('fs')
+const fs = require('fs');
 const parser = require('subtitles-parser');
 const minimist = require('minimist');
+const mkdirp = require('mkdirp');
 
 function processVideo(callback) {
 
@@ -87,34 +88,40 @@ function processVideo(callback) {
 
 
 function extractAudio(filename, callback) {
-      new ffmpeg({
-          source: filename,
-          timeout: 0
-      }).withAudioCodec('libmp3lame')
-          .withAudioBitrate(128)
-          .withAudioChannels(2)
-          .withAudioFrequency(44100)
-          .withAudioQuality(5)
-          .withAudioFilters('highpass=f=200', 'lowpass=f=3000')
-          .toFormat('mp3')
+  mkdirp('out', function (err) {
+    if (err) {
+      console.log(chalk.red(err));
+    }
+  })
 
-          .on('start', function (commandLine) {
-              console.log("Generating audio file from video");
-          })
+  new ffmpeg({
+    source: filename,
+    timeout: 0
+  }).withAudioCodec('libmp3lame')
+    .withAudioBitrate(128)
+    .withAudioChannels(2)
+    .withAudioFrequency(44100)
+    .withAudioQuality(5)
+    .withAudioFilters('highpass=f=200', 'lowpass=f=3000')
+    .toFormat('mp3')
 
-          .on('error', function (err, stdout, stderr) {
-              return callback(err);
-          })
+    .on('start', function (commandLine) {
+      console.log("Generating audio file from video");
+    })
 
-          .on('progress', function (progress) {
-              console.log(progress.percent.toFixed(0) + '%');
-          })
+    .on('error', function (err, stdout, stderr) {
+      return callback(err);
+    })
 
-          .on('end', function () {
-              console.log("Finished generating audio file: " + files.name(filename) + '.mp3');
-              return callback(null, files.name(filename) + '.mp3');
-          })
-          .saveToFile('out/' + files.name(filename) + '.mp3');
+    .on('progress', function (progress) {
+      console.log(progress.percent.toFixed(0) + '%');
+    })
+
+    .on('end', function () {
+      console.log("Finished generating audio file: " + files.name(filename) + '.mp3');
+      return callback(null, files.name(filename) + '.mp3');
+    })
+    .saveToFile('out/' + files.name(filename) + '.mp3');
 }
 
 function getSubtitles(apikey, filename, callback) {
