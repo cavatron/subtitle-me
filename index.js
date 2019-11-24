@@ -172,6 +172,7 @@ function capitalizeFirstLetter(string) {
 function formatSubtitles(resultsArray, casing, header, headerDuration) {
   var srtJSON = [];
   var speechEvents = [];
+  var rawText = [];
   var offset = 0;
 
   if (headerDuration && headerDuration > 0) {
@@ -249,6 +250,7 @@ function formatSubtitles(resultsArray, casing, header, headerDuration) {
       } else {
         subtitle.text = textItem;
       }
+
       // The timestamps entry is an array of 3 items ['word', 'start time', 'end time']
 
       var startTime = timeStamps[0][1];
@@ -269,12 +271,14 @@ function formatSubtitles(resultsArray, casing, header, headerDuration) {
 
       srtJSON.push(subtitle);
       speechEvents.push(event);
+      rawText.push(subtitle.text);
     }
 
   }
   return ({
     subtitles: srtJSON,
-    events: speechEvents
+    events: speechEvents,
+    rawText
   });
 }
 
@@ -308,6 +312,10 @@ function run() {
             // Write out all the raw speech events
             files.write('out/' + files.name(filename) + '_events.json', JSON.stringify(speechData.events, null, 2));
             console.log('Finished generating speech events file: ' + 'out/' + files.name(filename) + '_events.json');
+
+            var rawTextPath = 'out/' + files.name(filename) + '.txt';
+            files.write(rawTextPath, speechData.rawText);
+            console.log('Wrote raw text to file to ' + rawTextPath);
           }
         });
       }
