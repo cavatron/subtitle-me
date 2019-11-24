@@ -43,11 +43,7 @@ function processVideo(callback) {
     message: 'Enter the path to the video:',
     default: argv._[0] || null,
     validate: function (value) {
-      if (value.length) {
-        return true;
-      } else {
-        return 'Please enter the path to the video';
-      }
+      return value.length ? true : 'Please enter the path to the video';
     }
   },
   {
@@ -57,12 +53,23 @@ function processVideo(callback) {
     choices: ['yes', "no"],
     default: argv._[1] || 'yes',
     validate: function (value) {
-      if (value.length) {
-        return true;
-      } else {
-        return 'Please indicate whether the captions should be sentence cased';
-      }
+      return value.length ? true : 'Please indicate whether the captions should be sentence cased';
     },
+  },
+  {
+    name: 'header',
+    type: 'input',
+    message: 'Custom text at beginning of SRT file',
+    default: argv._[2] || null
+  },
+  {
+    name: 'headerDuration',
+    type: 'number',
+    message: 'Custom text duration in seconds',
+    default: argv._[3] || 3,
+    when: function(answers) {
+      return answers.header;
+    }
   }
   ];
 
@@ -71,16 +78,10 @@ function processVideo(callback) {
     status.start();
 
     extractAudio(answers.filename, function (err, filename) {
-      if (err) {
-        console.log(err.message);
-        status.stop();
-        return callback(err);
-      } else {
-        status.stop();
-        return callback(err, filename, answers.casing);
-      }
+      status.stop();
+      err && console.log(err.message);
+      return err ? callback(err) : callback(err, filename, answers.casing, answers.header, answers.headerDuration);
     });
-
   });
 }
 
@@ -168,12 +169,28 @@ function capitalizeFirstLetter(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-function formatSubtitles(resultsArray, casing) {
+function formatSubtitles(resultsArray, casing, header, headerDuration) {
   var srtJSON = [];
   var speechEvents = [];
+  var offset = 0;
 
-  for (var i = 0; i < resultsArray.results.length; ++i) {
-    var result = resultsArray.results[i];
+  if (headerDuration && headerDuration > 0) {
+    offset = 1;
+
+    srtJSON.push({
+      id: '1',
+      startTime: moment.duration(0, 'seconds').format('hh:mm:ss,SSS', {
+        trim: false
+      }),
+      endTime: moment.duration(headerDuration, 'seconds').format('hh:mm:ss,SSS', {
+        trim: false
+      }),
+      text: header
+    })
+  }
+
+  for (var i = 0 + offset; i - offset < resultsArray.results.length; ++i) {
+    var result = resultsArray.results[i - offset];
 
     var alternatives = result.alternatives;
     var timeStamps = alternatives[0].timestamps;
@@ -184,20 +201,20 @@ function formatSubtitles(resultsArray, casing) {
 
       // This is used to record the raw speech events 
       var event = {
-        'id': 0,
-        'text': '',
-        'words': []
+        id: 0,
+        text: '',
+        words: []
       };
 
       // This used for the subtitles
       var subtitle = {
-        'id': '0',
-        'startTime': '',
-        'endTime': '',
-        'text': ''
+        id: '0',
+        startTime: '',
+        endTime: '',
+        text: ''
       };
 
-      event.id = String(i + 1);
+      event.id = String(i + 1 - offset);
       event.text = textItem;
 
       /* 
@@ -234,12 +251,19 @@ function formatSubtitles(resultsArray, casing) {
       }
       // The timestamps entry is an array of 3 items ['word', 'start time', 'end time']
 
+      var startTime = timeStamps[0][1];
+      var endTime = timeStamps[timeStamps.length - 1][2];
+      if (headerDuration && headerDuration > 0) {
+        startTime += headerDuration;
+        endTime += headerDuration;
+      }
+
       // Get the start time for when the first word is spoken in the segment
-      subtitle.startTime = moment.duration(timeStamps[0][1], 'seconds').format('hh:mm:ss,SSS', {
+      subtitle.startTime = moment.duration(startTime, 'seconds').format('hh:mm:ss,SSS', {
         trim: false
       });
       // Get the end time for when the last word is spoken in the segment
-      subtitle.endTime = moment.duration(timeStamps[timeStamps.length - 1][2], 'seconds').format('hh:mm:ss,SSS', {
+      subtitle.endTime = moment.duration(endTime, 'seconds').format('hh:mm:ss,SSS', {
         trim: false
       });
 
@@ -249,8 +273,8 @@ function formatSubtitles(resultsArray, casing) {
 
   }
   return ({
-    'subtitles': srtJSON,
-    'events': speechEvents
+    subtitles: srtJSON,
+    events: speechEvents
   });
 }
 
@@ -265,7 +289,7 @@ function run() {
   );
 
   if (process.env.IBM_CLOUD_API_KEY) {
-    processVideo(function (err, filename, casing) {
+    processVideo(function (err, filename, casing, header, headerDuration) {
       if (err) {
         console.log(chalk.red("Failed to generate audio file from video"));
       } else {
@@ -275,7 +299,7 @@ function run() {
           } else {
             console.log('Generating subtitles file');
 
-            var speechData = formatSubtitles(response, casing);
+            var speechData = formatSubtitles(response, casing, header, headerDuration);
             // Take the JSON objects and write them in SRT format
             var srtSubs = parser.toSrt(speechData.subtitles);
             files.write('out/' + files.name(filename) + '.srt', srtSubs);

@@ -7,7 +7,7 @@
     "subtitle-me": "./cli.js"
   },
   "scripts": {
-    "start": "nodemon",
+    "start": "nodemon cli.js",
     "clean": "rimraf out"
   },
   "keywords": [
